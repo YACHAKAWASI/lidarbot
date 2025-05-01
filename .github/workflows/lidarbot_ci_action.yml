@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - name: Setup ROS2
-      uses: ros-tooling/setup-ros@v0.6
+      uses: ros-tooling/setup-ros@v0.7
       with:
         required-ros-distributions: humble
             
@@ -27,7 +27,7 @@ jobs:
       run: sudo apt install libi2c-dev i2c-tools libi2c0
         
     - name: Build Lidarbot packages 
-      uses: ros-tooling/action-ros-ci@v0.3
+      uses: ros-tooling/action-ros-ci@v0.4
       with:
         package-name: |
           lidarbot
@@ -35,6 +35,7 @@ jobs:
           lidarbot_bringup
           lidarbot_description
           lidarbot_gazebo
+          lidarbot_gz
           lidarbot_navigation
           lidarbot_slam
           lidarbot_teleop
@@ -42,7 +43,7 @@ jobs:
         skip-tests: true
 
     - name: Upload Logs
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: colcon-logs
         path: ros_ws/log

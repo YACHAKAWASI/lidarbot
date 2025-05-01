@@ -959,7 +959,7 @@ ros2 launch lidarbot_navigation navigation_launch.py use_sim_time:=true \
 map_subscribe_transient_local:=true
 ```
 
-In rviz, set the initial pose using the `2D Pose Estimate` button in the toolbar so that lidarbot is aligned correctly both in rviz and Gazebo Classic. Afterwards, click on the `2D Goal Pose` and choose a place on the map for lidarbot to navigate to:
+In `rviz`, set the initial pose using the `2D Pose Estimate` button in the toolbar so that lidarbot is aligned correctly both in `rviz` and Gazebo Classic. Afterwards, click on the `2D Goal Pose` and choose a place on the map for lidarbot to navigate to:
 
 <p align='center'>
     <img src=docs/images/gazebo_navigation.gif width="800">
