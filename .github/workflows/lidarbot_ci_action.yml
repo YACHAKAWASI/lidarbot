@@ -16,7 +16,7 @@ jobs:
         required-ros-distributions: humble
             
     - name: Install WiringPi i2c library for RPi 4
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - run: |
         mkdir Downloads
         git clone https://github.com/wbeebe/WiringPi.git
