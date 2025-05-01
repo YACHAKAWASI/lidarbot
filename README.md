@@ -4,15 +4,13 @@
 
 A differential drive robot is controlled using ROS2 Humble running on a Raspberry Pi 4 (running Ubuntu server 22.04). The vehicle is equipped with a Raspberry Pi camera for visual feedback and an RPlidar A1 sensor used for Simultaneous Localization and Mapping (SLAM), autonomous navigation and obstacle avoidance. Additionally, an MPU6050 inertial measurement unit (IMU) is employed by the `robot_localization` package on the robot, to fuse IMU sensor data and the wheel encoders data, using an Extended Kalman Filter (EKF) node, to provide more accurate robot odometry estimates.
 
-Hardware components are written for the Waveshare Motor Driver HAT and MPU6050 sensor to be accessed by the `ros2_control` differential drive controller and Imu sensor broadcaster respectively, via the `ros2_control` resource manager.
+Hardware components are written for the Waveshare Motor Driver HAT and MPU6050 sensor to be accessed by the `ros2_control` differential drive controller and IMU sensor broadcaster respectively, via the `ros2_control` resource manager.
 
 <p align='center'>
     <img src=docs/images/real_mapping.gif width="600">
 </p>
 
 A preprint of this work is available [here](http://dx.doi.org/10.13140/RG.2.2.15748.54408).
-
-🚧	***(Work in Progress)*** 
 
 - [Lidarbot](#lidarbot)
   - [🗃️ Package Overview](#️-package-overview)
@@ -24,17 +22,14 @@ A preprint of this work is available [here](http://dx.doi.org/10.13140/RG.2.2.15
       - [WiringPi](#wiringpi)
       - [MPU6050 library](#mpu6050-library)
       - [Sourcing ROS Installation](#sourcing-ros-installation)
-      - [Gazebo Classic](#gazebo-classic)
       - [Gazebo Fortress](#gazebo-fortress)
       - [Display lidarbot model in RViz](#display-lidarbot-model-in-rviz)
       - [Teleoperation](#teleoperation)
       - [Twist mux](#twist-mux)
-      - [Robot localization](#robot-localization)
     - [Lidarbot setup](#lidarbot-setup)
       - [Motor Driver HAT](#motor-driver-hat)
       - [Raspberry Pi Camera](#raspberry-pi-camera)
       - [MPU6050 offsets](#mpu6050-offsets)
-      - [MPU6050 covariances](#mpu6050-covariances)
   - [Network Configuration](#network-configuration)
   - [ros2 control Framework](#ros2-control-framework)
     - [Differential Drive Controller](#differential-drive-controller)
@@ -44,6 +39,7 @@ A preprint of this work is available [here](http://dx.doi.org/10.13140/RG.2.2.15
     - [Gazebo](#gazebo)
     - [Lidarbot](#lidarbot-1)
     - [Motor Connection Checks](#motor-connection-checks)
+    - [Robot localization](#robot-localization)
   - [Mapping](#mapping)
     - [Gazebo](#gazebo-1)
     - [Lidarbot](#lidarbot-2)
@@ -78,7 +74,7 @@ The following components were used in this project:
 |2| SanDisk 32 GB SD Card (minimum)|
 |3| [Two wheel drive robot chassis kit](https://www.amazon.com/perseids-Chassis-Encoder-Wheels-Battery/dp/B07DNYQ3PX/ref=sr_1_9?crid=3T8FVRRMPFCIX&keywords=two+wheeled+drive+robot+chassis&qid=1674141374&sprefix=two+wheeled+drive+robot+chas%2Caps%2C397&sr=8-9)|
 |4| [Waveshare Motor Driver HAT](https://www.waveshare.com/wiki/Motor_Driver_HAT)|
-|5| 2 x [Motors with encoders and wire harness](https://s.click.aliexpress.com/e/_DBL19Mr|
+|5| 2 x [Motors with encoders and wire harness](https://s.click.aliexpress.com/e/_DBL19Mr)|
 |6| MPU6050 board|
 |7| [RPlidar A1](https://s.click.aliexpress.com/e/_DdPdRS7)|
 |8| Raspberry Pi camera v1.3|
@@ -121,7 +117,7 @@ The MPU6050 board pins were connected to the Raspberry Pi 4 GPIO pins as follows
 | SCL         | 05 | GPIO03 |
 | SDA         | 03 | GPIO02 |
 
-In a previous hardware version of lidarbot, photo interrupters were used with encoder disks with 20 slots (included in the robot chassis kit). However, this setup proved restrictive in yielding satisfactory results in navigation due to the low number of encoder ticks, 20. Therefore, the robot chassis kit motors were replaced with the ones below with built-in encoders --- which have encoder ticks of approximately 1084, calculated using this [guide](https://automaticaddison.com/calculate-pulses-per-revolution-for-a-dc-motor-with-encoder/) from Automatic Addison.
+In a previous hardware version of lidarbot, photo interrupters were used with encoder disks with 20 slots (included in the robot chassis kit). However, this setup proved restrictive in yielding satisfactory results in navigation due to the low number of encoder ticks, which was only **20** for a **360 degree** turn of the motor. Therefore, the robot chassis kit motors were replaced with the ones below with built-in encoders --- which have encoder ticks of approximately **1084**, calculated using this [guide](https://automaticaddison.com/calculate-pulses-per-revolution-for-a-dc-motor-with-encoder/) from Automatic Addison.
 
 These are the new motors used for lidarbot:
 
@@ -172,7 +168,7 @@ The screw terminal blocks on the Motor Driver HAT ([shown below](https://www.wav
   <img title='Motor Driver HAT' src=docs/images/Motor_Driver_HAT.png width="400">
 </p>
 
-Solder the cables (provided) to the motors. Might need to use spare wires if the provided ones are too short to reach the Motor Driver Hat. Should the wheel(s) move in the direction opposite of what is expected, exchange the respective motor cables screwed into the terminal blocks.
+Solder the cables (provided) to the motors. Spare wires might be needed if the provided ones are too short to reach the Motor Driver Hat. Should the wheel(s) move in the direction opposite of what is expected, exchange the respective motor cables screwed into the terminal blocks.
 
 Finally, the Raspberry Pi camera is connected to the ribbon slot on the Raspberry Pi 4 and the RPlidar A1 sensor is plugged into one of the RPi 4's USB ports.
 
@@ -246,9 +242,9 @@ The reference article for the WiringPi library can be found [here](https://arcan
 #### MPU6050 library
 
 Alex Mous' [C/C++ MPU6050 library](https://github.com/alex-mous/MPU6050-C-CPP-Library-for-Raspberry-Pi
-) for Raspberry Pi 4, with modifications to incorporate quaternions, was used to setup the `ros2_control` Imu sensor broadcaster in the [`lidarbot_bringup`](./lidarbot_bringup/) package.
+) for Raspberry Pi 4, with modifications to incorporate quaternions, was used to setup the `ros2_control` IMU sensor broadcaster in the [`lidarbot_bringup`](./lidarbot_bringup/) package.
 
-Recall that the MPU6050 module uses the I2C communication protocol, the i2c dependencies for using this library are installed with:
+Recall that the MPU6050 module uses the I2C communication protocol, the I2C dependencies for using this library are installed with:
 
 ```
 sudo apt install libi2c-dev i2c-tools libi2c0
@@ -295,15 +291,11 @@ colcon build --symlink-install
 
 The `--symlink-install` argument uses symlinks instead of copies which saves you from having to rebuild every time you [tweak certain files](https://articulatedrobotics.xyz/ready-for-ros-5-packages/).
 
-
-#### Gazebo Classic
-
-TODO: Add update on using Gazebo Fortress
-
-Gazebo classic, version 11, is the robot simulator used in the project and can be installed [here](https://classic.gazebosim.org/tutorials?tut=install_ubuntu&cat=install). 
-
 #### Gazebo Fortress
-TODO:
+
+*UPDATE: Previously, [Gazebo Classic](https://classic.gazebosim.org/) was used as the simulator for the project but Gazebo Classic has been [deprecated](https://gazebosim.org/docs/latest/gazebo_classic_migration/). The Gazebo Classic lidarbot package is still available here, [`lidarbot_gazebo`](./lidarbot_gazebo/), however, you might encounter installation issues with Classic. It is recommended to [migrate to Gazebo](https://gazebosim.org/docs/latest/gazebo_classic_migration/ ), formerly called "Ignition", and choosing the Fortress release for use with Ubuntu 22.04.*
+
+Gazebo Fortress is used as the simulator for lidarbot. It can be installed with ROS following the steps outlined in this [guide](https://gazebosim.org/docs/fortress/ros_installation/).
 
 #### Display lidarbot model in RViz
 
@@ -326,7 +318,7 @@ ros2 launch lidarbot_description description_launch.py use_gui:=true
 ```
 
 <p align='center'>
-  <img src=docs/images/joint_state_publisher_gui.png width="800">
+  <img src=docs/images/joint_state_publisher_gui.gif width="800">
 </p>
 
 The different arguments for the launch file, and their default values, can be viewed by adding `--show-args` at the end of launch command:
@@ -337,10 +329,10 @@ ros2 launch lidarbot_description description_launch.py --show-args
 
 #### Teleoperation
 
-A [wireless gamepad](https://www.aliexpress.com/item/1005005354226710.html), like the one shown below, is used to control lidarbot both in simulation and physically. 
+A wireless gamepad, like the one shown below, is used to control lidarbot both in simulation and physically. 
 
 <p align='center'>
-  <img src=docs/images/wireless_gamepad.jpg width="400">
+  <img src=docs/images/wireless_gamepad.jpg width="600">
 </p>
 
 The [joy_tester](https://index.ros.org/p/joy_tester/#humble) package is used to test and map the gamepad (joystick) keys to control lidarbot. To use it, plug in the USB dongle in the PC, then run:
@@ -378,12 +370,11 @@ The `joy_node` parameter, `deadzone`, specifies the amount a joystick has to be 
 
 The `deadzone` parameter should be tuned to suit the performance of user's game controller.
 
-
 #### Twist mux
 
 The [`twist_mux`](https://index.ros.org/p/twist_mux/github-ros-teleop-twist_mux/#humble) package is used to multiplex several velocity command sources, used to move the robot with an unstamped [geometry_msgs::Twist](http://docs.ros.org/en/api/geometry_msgs/html/msg/Twist.html) message, into a single one. These sources are assigned priority values to allow a velocity source to be used or disabled. In this project, the command velocity sources are from the joystick and navigation.
 
-The `twist_mux` configuration file is in [`twist_mux.yaml`](./lidarbot_teleop/config/twist_mux.yaml), and is used in the gazebo and lidarbot bringup launch files, [`gazebo_launch.py`](./lidarbot_gazebo/launch/gazebo_launch.py) and [`lidarbot_bringup_launch.py`](./lidarbot_bringup/launch/lidarbot_bringup_launch.py) respectively.
+The `twist_mux` configuration file is in [`twist_mux.yaml`](./lidarbot_teleop/config/twist_mux.yaml), and is used in the Gazebo and lidarbot bringup launch files, [`gz_launch.py`](./lidarbot_gz/launch/gz_launch.py) and [`lidarbot_bringup_launch.py`](./lidarbot_bringup/launch/lidarbot_bringup_launch.py) respectively.
 
 It can be observed from the configuration file, that the joystick commmand velocity source has a higher priority, with an assigned value of `100`, compared to the navigation velocity source that is assigned a value of `10`.
 
@@ -399,15 +390,6 @@ twist_mux:
         topic   : cmd_vel_joy
         timeout : 0.5
         priority: 100
-```
-
-#### Robot localization
-TODO:
-
-ekf.yaml
-
-```
-ros2 launch lidarbot_bringup lidarbot_bringup_launch.py use_robot_localization:=false
 ```
 
 ### Lidarbot setup
@@ -438,13 +420,13 @@ rosdep install --from-paths src --ignore-src -r -y \
 --skip-keys "rviz2 gazebo_ros2_control gazebo_ros_pkgs" --rosdistro humble
 ```
 
-`rviz2` and the gazebo related packages are skipped in the ROS dependency installation process as they are only run on the PC and not on the robot --- the rosdep keys for the ROS2 Humble distribution are available [here](https://github.com/ros/rosdistro/blob/master/humble/distribution.yaml).
+`rviz2` and the Gazebo related packages are skipped in the ROS dependency installation process as they are only run on the PC and not on the robot --- the rosdep keys for the ROS2 Humble distribution are available [here](https://github.com/ros/rosdistro/blob/master/humble/distribution.yaml).
 
 [WiringPi i2c library](#wiringpi) and [MPU6050 RPi 4 C++ library](#mpu6050-library) are also installed before building the workspace --- a `Downloads` directory will need to be created to clone the WiringPi files.
 
 Likewise to avoid manually sourcing the underlay and overlay, the same steps employed in the [development machine setup](#sourcing-ros-installation) are followed but replacing `dev_ws` with `robot_ws` where necessary.
 
-Afterwards, navigate to the workspace directory then run build command:
+Afterwards, navigate to the workspace directory then run the build command:
 
 ```
 cd ~/robot_ws
@@ -453,25 +435,73 @@ colcon build --symlink-install
 
 #### Motor Driver HAT
 
-Waveshare's Motor Driver HAT was used to control the motors of lidarbot. The relevant files found in the [`include`](./lidarbot_base/include/lidarbot_base/) and [`src`](./lidarbot_base/src/) directories of the [`lidarbot_base`](./lidarbot_base/) package. These files were modified, from those made [available by Waveshare](https://www.waveshare.com/wiki/Motor_Driver_HAT) with new ones added as well, to find a workaround to determining the motor direction of rotation --- this is a relatively straightforward task if the motors used here had hall effect encoders affixed to them. 
+Waveshare's Motor Driver HAT was used to control the motors of lidarbot. The relevant files are found in the [`include`](./lidarbot_base/include/lidarbot_base/) and [`src`](./lidarbot_base/src/) directories of the [`lidarbot_base`](./lidarbot_base/) package, the file tree of these directories are as shown, 
+
+
+```
+├── CMakeLists.txt
+├── include
+│   └── lidarbot_base
+│       ├── Debug.h
+│       ├── DEV_Config.h
+│       ├── lidarbot_hardware.hpp
+│       ├── MotorDriver.h
+│       ├── motor_encoder.h
+│       ├── PCA9685.h
+│       └── wheel.hpp
+├── lidarbot_hardware.xml
+├── package.xml
+└── src
+    ├── DEV_Config.c
+    ├── lidarbot_hardware.cpp
+    ├── motor_checks_client.cpp
+    ├── motor_checks_server.cpp
+    ├── MotorDriver.c
+    ├── motor_encoder.c
+    ├── PCA9685.c
+    └── wheel.cpp
+```
+
+The following table summarizes the package files specifying those that were made [available by Waveshare](https://www.waveshare.com/wiki/Motor_Driver_HAT), the newly added ones and the functions they serve.
+
+| File(s) | New | Modified | Function |
+| ----------- | ------------| ------ | ------ |
+| `Debug.h` | No | No | Output debug information with `printf`. |
+| `DEV_Config.h`, `DEV_Config.c` | No | Yes | Configure underlying device interfaces and protocols. |
+| `lidarbot_hardware.hpp`, `lidarbot_hardware.cpp` | Yes | No | Configure the WaveShare Motor Driver HAT system hardware component. It reads the motor encoder values to calculate the wheel positions and velocities. It also sends commands to the drive the motors of each wheel proportional to the velocity commands received from the `ros2_control` differential driver controller. |
+| `motor_checks_client.cpp` | Yes | No | Request motor tests to confirm motor connections and the motor operation. |
+| `motor_checks_server.cpp` | Yes | No | Run requested motor tests. |
+| `MotorDriver.h`, `MotorDriver.c` | No | Yes | Program the TB6612FNG motor Integrated Circuit (IC) to drive the motors. |
+| `motor_encoder.h`, `motor_encoder.c` | Yes | No | Calculate encoder ticks and set the speed each motor should run at according to the commands received from the hardware component. |
+| `PCA9685.h`, `PCA9685.c` | No | No | Program the PCA9685 chip to adjust the motor speed using Pulse Width Modulation (PWM). |
+| `wheel.hpp`, `wheel.cpp` | Yes | No | Configure motor wheel parameters. |
+
+The hierarchy of motor control is shown in the image below.
+
+<p align='center'>
+  <img src=docs/images/motor_control_hierarchy.jpg width="600">
+</p>
+
+The main reasons for modifying the Waveshare files was to enable the use of the WiringPi library and also to find a workaround to determining the motor direction of rotation --- this was made relatively easier since the motor encoders used here have hall effect sensors affixed to them as shown below. 
+
+<p align='center'>
+  <img src=docs/images/hall_effect_sensors.png width="800">
+</p>
+
+Hall effect sensors in motor encoders detect changes in the magnetic field associated with the motor's rotation. These changes can be used by the motor encoder to determine the position of the motor. [As the motor rotates](https://automaticaddison.com/calculate-pulses-per-revolution-for-a-dc-motor-with-encoder/), it generates alternating electrical signals of high and low voltage, and each time the signal goes from from low high (that is, it is rising), that counts as a single ***pulse***. The image below, from this [guide](https://automaticaddison.com/calculate-pulses-per-revolution-for-a-dc-motor-with-encoder/) from Automatic Addison, visualizes this.
+
+<p align='center'>
+  <img src=docs/images/time_interval.jpg width="600">
+</p>
+
+The encoder pulse, sometimes referred to as a ***tick***, for a 360 degree turn of the motor is used as the wheel odometry data of the robot. This data will be used with the MPU6050 IMU sensor data using an Extended Kalman Filter with the [robot_localization](#robot-localization) package to provide more accurate robot odometry estimates. Recall that the encoder ticks for the motors used here is **1084**, for a 360 degree turn of the motor.
 
 The library dependencies for using the Motor Driver HAT were met after installing the MPU6050 library.
-
-TODO: 
-
-brief on how hall effect sensor work
-
-Pulse counts
-
-Link with diff_drive_controller
-
-Pull up resistor with relevant links
-
-Code structure
 
 #### Raspberry Pi Camera
 
 The following packages are installed to use the Raspberry Pi Camera v1.3:
+
 ```
 sudo apt install libraspberrypi-bin v4l-utils raspi-config
 ```
@@ -498,15 +528,16 @@ vcgencmd get_camera
 ```
 
 This should output the following result:
+
 ```
 supported=1 detected=1, libcamera interfaces=0
 ```
 
 #### MPU6050 offsets
 
-Prior to using the [Imu sensor broadcaster](https://index.ros.org/p/imu_sensor_broadcaster/github-ros-controls-ros2_controllers/#humble), the MPU6050 module needs to be calibrated to filter out its sensor noise/offsets. This is done in the following steps:
+Prior to using the [IMU sensor broadcaster](https://index.ros.org/p/imu_sensor_broadcaster/github-ros-controls-ros2_controllers/#humble), the MPU6050 module needs to be calibrated to filter out its sensor noise/offsets. This is done in the following steps:
 
-- Place the lidarbot on a flat and level surface and unplug the RPlidar. 
+- Place lidarbot on a flat and level surface and unplug the RPlidar. 
 - Generate the MPU6050 offsets. A Cpp executable is created in the CMakeLists.txt file of the `lidarbot_bringup` package before generating the MPU6050 offsets. This section of the [CMakeLists.txt](./lidarbot_bringup/CMakeLists.txt) file is shown below:
 
   ```
@@ -570,11 +601,54 @@ Prior to using the [Imu sensor broadcaster](https://index.ros.org/p/imu_sensor_b
 
 The MPU6050 module is set to its most sensitive gyroscope and accelerometer ranges, which can be confirmed (or changed) at the top of the `mpu6050_lib.h` file.
 
-#### MPU6050 covariances
+## Network Configuration
+
+Both the development machine and lidarbot need to be connected to the same local network as a precursor to bidirectional communication between the two systems. This [guide](https://roboticsbackend.com/ros2-multiple-machines-including-raspberry-pi/) by Robotics Backend was used in configuring the network communication. 
+
+To ensure communication between the dev machine and lidarbot, firstly, the firewall on the development machine had to be disabled (the firewall on the Ubuntu server was disabled by default):
+
+```
+sudo ufw disable
+```
+
+The next step is to export `ROS_DOMAIN_ID` number, a number between 0 (by default) and 101, to the shell configurations of both systems:
+
+```
+echo "export ROS_DOMAIN_ID=31" >> ~/.zshrc
+```
+
+This step is necessary particularly if there are other robots and development machines on the same local network. This [YouTube video](https://www.youtube.com/watch?v=qSjNQC2AT_4) and [article](https://docs.ros.org/en/humble/Concepts/Intermediate/About-Domain-ID.html) go into more detail about `ROS_DOMAIN_ID`.
+
+Then source the shell configuration file:
+```
+source $HOME/.zshrc
+```
+
+Both systems might need to be rebooted to effect these changes.
+
+A static IP address was assigned to lidarbot on the router for easy discoverability on the network. Furthermore, it is advisable to use a router that supports at least the WiFi 5 wireless standard to avoid excessive data lag on RViz and terminal crashes when recording a [ros2bag](https://index.ros.org/r/rosbag2/github-ros2-rosbag2/#humble) for instance; in relation to ros2bags, changing the default data storage format to [MCAP](https://foxglove.dev/blog/announcing-the-mcap-storage-plugin-for-ros2) should [improve read and write performance](https://adrian-website.mcap.pages.dev/guides/benchmarks/rosbag2-storage-plugins). 
+
+A dedicated network travel router, following this setup by [Articulated Robotics](https://articulatedrobotics.xyz/tutorials/ready-for-ros/networking#dedicated-network) was used in this project to establish a reliable connection between the development machine and lidarbot.
+
+Additional network troubleshooting information can be found [here](https://docs.ros.org/en/humble/How-To-Guides/Installation-Troubleshooting.html).
+
+## ros2 control Framework
+
+<p align="center">
+  <img title='ros2 control architecture' src=docs/images/ros2_control_arch.png width="800">
+</p>
+
+Image adapted from [Denis Štogl](https://vimeo.com/649651707) (CC-BY)
+
+### Differential Drive Controller
+
+### Joint State Broadcaster
+
+### IMU Sensor Broadcaster
 
 TODO:
 Quick difference between variance and covariances
- 
+
 IMU covariances required in `controllers.yaml`
 
 Generate covariances for MPU6050 module:
@@ -596,53 +670,6 @@ static_covariance_linear_acceleration: [0.000632951, 0.0, 0.0, 0.000801987, 0.0,
 Paste covariance arrays in the imu_broadcaster ros__parameters section in lidarbot_bringup/config/controllers.yaml.
 
 ```
-
-
-## Network Configuration
-
-TODO: update with Mini Router setup
-
-Both the development machine and lidarbot need to be connected to the same local network as a precursor to bidirectional communication between the two systems. This [guide](https://roboticsbackend.com/ros2-multiple-machines-including-raspberry-pi/) by Robotics Backend was used in configuring the network communication. 
-
-To ensure communication between the dev machine and lidarbot, firstly, the firewall on the development machine had to be disabled (the firewall on the Ubuntu server was disabled by default):
-
-```
-sudo ufw disable
-```
-
-The next step is to export `ROS_DOMAIN_ID` numbers, between 1 and 232, to the shell configurations of both systems:
-
-```
-echo "export ROS_DOMAIN_ID=31" >> ~/.zshrc
-```
-
-Then source the shell configuration file:
-```
-source $HOME/.zshrc
-```
-
-Both systems might need to be rebooted to effect these changes.
-
-A static IP address was assigned to lidarbot on the router for easy discoverability on the network. Furthermore, it is advisable to use a router that supports at least the WiFi 5 wireless standard to avoid excessive data lag on RViz and terminal crashes when recording a [ros2bag](https://index.ros.org/p/ros2bag/github-ros2-rosbag2/#humble) for instance.
-
-***NOTE:*** 
-Best practices might not have been employed in establishing communication between the two systems. The approach proposed [here](https://docs.ros.org/en/humble/How-To-Guides/Installation-Troubleshooting.html) was unable to be replicated in this project but others might find better success.
-
-## ros2 control Framework
-
-<p align="center">
-  <img title='ros2 control architecture' src=docs/images/ros2_control_arch.png width="800">
-</p>
-
-Image adapted from [Denis Štogl](https://vimeo.com/649651707) (CC-BY)
-
-### Differential Drive Controller
-
-### Joint State Broadcaster
-
-### IMU Sensor Broadcaster
-
-
 
 ## Test Drive
 
@@ -706,6 +733,16 @@ ros2 launch lidarbot_bringup lidarbot_bringup_launch.py
 
 **Note:** There are some warning and error messages outputted to the terminal related to the camera. These are mostly related to calibrating the camera and can be ignored. 
 
+
+### Robot localization
+
+TODO:
+
+ekf.yaml
+
+```
+ros2 launch lidarbot_bringup lidarbot_bringup_launch.py use_robot_localization:=false
+```
 ## Mapping
 
 TODO: Brief overview of slam_toolbox
@@ -795,7 +832,6 @@ Drive around the environment to generate a map:
 </p>
 
 Then save the generated map.
-
 
 ## Aruco package
 
@@ -889,7 +925,7 @@ TODO: Brief overview
 
 ### Gazebo
 
-Nav2's `amcl` package is used for localization with the map generated from ``slam_toolbox`. 
+Nav2's `amcl` package is used for localization with the map generated from `slam_toolbox`. 
 
 Bring up lidarbot in Gazebo Fortress:
 
@@ -923,7 +959,7 @@ ros2 launch lidarbot_navigation navigation_launch.py use_sim_time:=true \
 map_subscribe_transient_local:=true
 ```
 
-In rviz, set the initial pose using the `2D Pose Estimate` button in the toolbar so that lidarbot is aligned correctly both in rviz and Gazebo classic. Afterwards, click on the `2D Goal Pose` and choose a place on the map for lidarbot to navigate to:
+In rviz, set the initial pose using the `2D Pose Estimate` button in the toolbar so that lidarbot is aligned correctly both in rviz and Gazebo Classic. Afterwards, click on the `2D Goal Pose` and choose a place on the map for lidarbot to navigate to:
 
 <p align='center'>
     <img src=docs/images/gazebo_navigation.gif width="800">

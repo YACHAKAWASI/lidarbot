@@ -193,9 +193,4 @@ def generate_launch_description():
     ld.add_action(start_joystick_cmd)
     ld.add_action(start_twist_mux_cmd)
 
-    # TODO:
-    # Sort out colors in simulation
-    # Bring up rviz2 and mapping/localization stuff too (?)
-    # Launch processes after previous ones have started (?)
-
     return ld

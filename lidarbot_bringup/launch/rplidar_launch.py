@@ -1,3 +1,5 @@
+# This launch file runs the rplidar_ros node with the configurations specified
+
 #!/usr/bin/env python3
 
 from ament_index_python.packages import get_package_share_directory

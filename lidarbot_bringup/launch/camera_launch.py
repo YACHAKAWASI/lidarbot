@@ -1,4 +1,4 @@
-# Launch file to start the raspberry pi camera
+# This launch file runs the v4l2_camera node used to start up the raspberry pi camera v1.3
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
