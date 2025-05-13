@@ -689,6 +689,9 @@ A system component has reading and writing capabilities, these are expressed as 
   </joint>
 </ros2_control>
 ```
+
+A similar system hardware component is configured for Gazebo Fortress in this [URDF](./lidarbot_gz/urdf/lidarbot_gz.urdf.xacro) file.
+
 #### Sensor
 
 A sensor provides information about changes to a physical phenomenon it is observing. A sensor component has only reading capabilities and is related to a joint or a link in the URDF file. This component type can be configured as an externally connected sensor, with its own `<ros2_control>` tags, or as an integrated sensor embedded in system component `<ros2_control>` tags. The MPU6050 module is configured as an externally connected sensor component and is associated with a fixed link named `imu_link`. This configuration is shown in the code snippet below which is available in the MPU6050 section of this [xacro file](./lidarbot_description/urdf/ros2_control.xacro).
@@ -714,6 +717,8 @@ A sensor provides information about changes to a physical phenomenon it is obser
   </sensor>
 </ros2_control>
 ```
+
+However, a standalone [IMU sensor plugin](https://gazebosim.org/docs/fortress/sensors/#imu-sensor) was used to simulate an IMU sensor in Gazebo Fortress.
 
 #### Actuator
 
@@ -878,6 +883,7 @@ ros2 launch lidarbot_bringup lidarbot_bringup_launch.py
 **Note:** There are some warning and error messages outputted to the terminal related to the camera. These are mostly related to calibrating the camera and can be ignored. 
 
 ### Robot localization
+
 
 TODO:
 
