@@ -718,7 +718,7 @@ A sensor provides information about changes to a physical phenomenon it is obser
 </ros2_control>
 ```
 
-However, a standalone [IMU sensor plugin](https://gazebosim.org/docs/fortress/sensors/#imu-sensor) was used to simulate an IMU sensor in Gazebo Fortress.
+However, a standalone [IMU sensor plugin](https://gazebosim.org/docs/fortress/sensors/#imu-sensor) was used to simulate an [IMU sensor](./lidarbot_gz/urdf/sensors.xacro) in Gazebo Fortress.
 
 #### Actuator
 
@@ -818,7 +818,7 @@ The following image (adapted from [Denis Štogl](https://vimeo.com/649651707) (C
   <img title='ros2 control architecture' src=docs/images/ros2_control_arch.png width="800">
 </p>
 
-The `ros2_control` framework can be explored in more detail by reading the [official documentation](https://control.ros.org/master/doc/getting_started/getting_started.html), this [article](https://masum919.github.io/ros2_control_explained/) from Masum, this [tutorial](https://articulatedrobotics.xyz/tutorials/mobile-robot/applications/ros2_control-concepts/) from Articulated Robotics and the [preprint]((http://dx.doi.org/10.13140/RG.2.2.15748.54408)) of this project.
+The `ros2_control` framework can be explored in more detail by reading the [official documentation](https://control.ros.org/master/doc/getting_started/getting_started.html), this [article](https://masum919.github.io/ros2_control_explained/) from Masum, this [tutorial](https://articulatedrobotics.xyz/tutorials/mobile-robot/applications/ros2_control-concepts/) from Articulated Robotics and the [preprint](http://dx.doi.org/10.13140/RG.2.2.15748.54408) of this project.
 
 ## Test Drive
 
@@ -871,7 +871,6 @@ These are the steps followed by the server node:
     <img src=docs/images/motor_connection_tests.gif width="400">
 </p>
 
-
 If a motor moves backward instead of forward, swap the cables for the specific motor to change the direction.
 
 After it is confirmed that both motors moved forward, lidarbot can be driven around with the gamepad (with the joystick and button configuration presented [here](#teleoperation)) by running this command:
@@ -883,7 +882,6 @@ ros2 launch lidarbot_bringup lidarbot_bringup_launch.py
 **Note:** There are some warning and error messages outputted to the terminal related to the camera. These are mostly related to calibrating the camera and can be ignored. 
 
 ### Robot localization
-
 
 TODO:
 
