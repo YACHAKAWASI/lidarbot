@@ -2,7 +2,7 @@
 
 ![ROS2 CI](https://github.com/TheNoobInventor/lidarbot/actions/workflows/.github/workflows/lidarbot_ci_action.yml/badge.svg)
 
-A differential drive robot is controlled using ROS2 Humble running on a Raspberry Pi 4 (running Ubuntu server 22.04). The vehicle is equipped with a Raspberry Pi camera for visual feedback and an RPlidar A1 sensor used for Simultaneous Localization and Mapping (SLAM), autonomous navigation and obstacle avoidance. Additionally, an MPU6050 inertial measurement unit (IMU) is employed by the `robot_localization` package on the robot, to fuse IMU sensor data and the wheel encoders data, using an Extended Kalman Filter (EKF) node, to provide more accurate robot odometry estimates.
+A differential drive robot is controlled using ROS2 Humble running on a Raspberry Pi 4 (running Ubuntu server 22.04). The vehicle is equipped with a Raspberry Pi camera for visual feedback and an RPlidar A1 sensor used for Simultaneous Localization and Mapping (SLAM), autonomous navigation using the Nav2 stack. Additionally, an MPU6050 inertial measurement unit (IMU) is employed by the `robot_localization` package on the robot, to fuse IMU sensor data and the wheel encoders data, using an Extended Kalman Filter (EKF) node, to provide more accurate robot odometry estimates.
 
 Hardware components are written for the Waveshare Motor Driver HAT and MPU6050 sensor to be accessed by the `ros2_control` differential drive controller and IMU sensor broadcaster respectively, via the `ros2_control` resource manager.
 
@@ -32,24 +32,29 @@ A preprint of this work is available [here](http://dx.doi.org/10.13140/RG.2.2.15
       - [MPU6050 offsets](#mpu6050-offsets)
   - [Network Configuration](#network-configuration)
   - [ros2 control Framework](#ros2-control-framework)
-    - [Differential Drive Controller](#differential-drive-controller)
-    - [Joint State Broadcaster](#joint-state-broadcaster)
-    - [IMU Sensor Broadcaster](#imu-sensor-broadcaster)
+    - [Hardware components](#hardware-components)
+      - [System](#system)
+      - [Sensor](#sensor)
+      - [Actuator](#actuator)
+    - [Resource Manager](#resource-manager)
+    - [Controllers](#controllers)
+      - [Differential Drive Controller](#differential-drive-controller)
+      - [Joint State Broadcaster](#joint-state-broadcaster)
+      - [IMU Sensor Broadcaster](#imu-sensor-broadcaster)
+    - [Controller Manager](#controller-manager)
   - [Test Drive](#test-drive)
-    - [Gazebo](#gazebo)
-    - [Lidarbot](#lidarbot-1)
     - [Motor Connection Checks](#motor-connection-checks)
     - [Robot localization](#robot-localization)
   - [Mapping](#mapping)
-    - [Gazebo](#gazebo-1)
-    - [Lidarbot](#lidarbot-2)
+    - [Gazebo](#gazebo)
+    - [Lidarbot](#lidarbot-1)
   - [Aruco package](#aruco-package)
     - [Generate ArUco marker](#generate-aruco-marker)
     - [Webcam calibration](#webcam-calibration)
     - [Aruco trajectory visualizer node](#aruco-trajectory-visualizer-node)
   - [Navigation](#navigation)
-    - [Gazebo](#gazebo-2)
-    - [Lidarbot](#lidarbot-3)
+    - [Gazebo](#gazebo-1)
+    - [Lidarbot](#lidarbot-2)
   - [Acknowledgment](#acknowledgment)
 
 
@@ -535,7 +540,7 @@ supported=1 detected=1, libcamera interfaces=0
 
 #### MPU6050 offsets
 
-Prior to using the [IMU sensor broadcaster](https://index.ros.org/p/imu_sensor_broadcaster/github-ros-controls-ros2_controllers/#humble), the MPU6050 module needs to be calibrated to filter out its sensor noise/offsets. This is done in the following steps:
+Prior to using the [IMU sensor broadcaster](#imu-sensor-broadcaster), the MPU6050 module needs to be calibrated to filter out its sensor noise/offsets. This is done in the following steps:
 
 - Place lidarbot on a flat and level surface and unplug the RPlidar. 
 - Generate the MPU6050 offsets. A Cpp executable is created in the CMakeLists.txt file of the `lidarbot_bringup` package before generating the MPU6050 offsets. This section of the [CMakeLists.txt](./lidarbot_bringup/CMakeLists.txt) file is shown below:
@@ -634,28 +639,149 @@ Additional network troubleshooting information can be found [here](https://docs.
 
 ## ros2 control Framework
 
+To control the motion of lidarbot both in simulation and physically, the `ros2_control` framework was used. It is defined as a [hardware-agnostic control framework](https://control.ros.org/master/doc/resources/resources.html#roscon-fr-2022) focusing on the modularity of control systems for robots, sharing of controllers and real-time performance. It provides hardware abstraction and low-level management utility, for instance, hardware lifecycle, communication and access control, which is useful for other frameworks like the manipulation path planning and autonomous navigation frameworks, [MoveIt2](https://moveit.picknik.ai/main/index.html) and [Nav2](https://ieeexplore.ieee.org/iel7/9340668/9340635/09341207.pdf) respectively.
+
+The `ros2_control` framework can be thought of as a [middleman](https://automaticaddison.com/how-to-control-a-robotic-arm-using-ros-2-control-and-gazebo/) between the robot hardware and the robot software and is comprised of the following parts:
+
+1. Hardware Components
+2. Resource Manager
+3. Controllers
+4. Controller Manager
+
+### Hardware components
+
+Hardware components are drivers for physical hardware and represent its abstraction in the `ros2_control` framework. These components are usually provided by robot or hardware manufacturers, otherwise the components would either have to be sourced from the ROS community or written from scratch using this [guide](https://control.ros.org/master/doc/ros2_control/hardware_interface/doc/writing_new_hardware_component.html) made available by the `ros2_control` development team. Hardware components are written in `C++` and exported as plugins using the [`pluginlib`](https://index.ros.org/p/pluginlib/#humble)-library; these plugins are dynamically loaded at runtime by the [Resource Manager](#resource-manager).
+
+Hardware components are configured in the robot's Unified Robot Description Format (URDF) file --- an XML file that describes the model of the robot --- using the `<ros2_control>` [tag](https://control.ros.org/master/doc/getting_started/getting_started.html#hardware-description-in-urdf) and the recommended `xacro` (XML) macro files.
+
+There are 3 basic types of components:
+
+#### System
+
+This refers to a hardware setup made up of more than 1 Degree of Freedom (DOF) which contains multiple joints and sensors. This component type offers a lot of flexibility in handling hardware setups which can range from mobile robots to humanoid robot hands and more. The Waveshare Motor Driver HAT controls the two motors (or two wheel joints) on lidarbot, hence the robot base is classifed as a system component.
+  
+A system component has reading and writing capabilities, these are expressed as state interfaces and command interfaces respectively. The system component configuration for the robot base with a velocity command interface and state interfaces for both the velocity and position is shown in the code snippet below, available in this [xacro file](./lidarbot_description/urdf/ros2_control.xacro).
+
+```
+<ros2_control name='RealRobot' type='system'>
+  <hardware>
+    <plugin>lidarbot_base/LidarbotHardware</plugin>
+      <param name='left_wheel_name'>left_wheel_joint</param>
+      <param name='right_wheel_name'>right_wheel_joint</param>
+      <param name='enc_ticks_per_rev'>1084</param>
+      <param name='loop_rate'>30.0</param>
+  </hardware>
+  <joint name='left_wheel_joint'>
+    <command_interface name='velocity'>
+      <param name='min'>-10</param>
+      <param name='max'>10</param>
+    </command_interface>
+    <state_interface name='velocity'/>
+    <state_interface name='position'/>
+  </joint>
+  <joint name='right_wheel_joint'>
+    <command_interface name='velocity'>
+      <param name='min'>-10</param>
+      <param name='max'>10</param>
+    </command_interface>
+    <state_interface name='velocity'/>
+    <state_interface name='position'/>
+  </joint>
+</ros2_control>
+```
+#### Sensor
+
+A sensor provides information about changes to a physical phenomenon it is observing. A sensor component has only reading capabilities and is related to a joint or a link in the URDF file. This component type can be configured as an externally connected sensor, with its own `<ros2_control>` tags, or as an integrated sensor embedded in system component `<ros2_control>` tags. The MPU6050 module is configured as an externally connected sensor component and is associated with a fixed link named `imu_link`. This configuration is shown in the code snippet below which is available in the MPU6050 section of this [xacro file](./lidarbot_description/urdf/ros2_control.xacro).
+
+```
+<ros2_control name='MPU6050' type='sensor'>
+  <hardware>
+    <plugin>lidarbot_bringup/MPU6050Hardware</plugin>
+      <param name='sensor_name'>mpu6050</param>
+      <param name='frame_id'>imu_link</param>
+  </hardware>
+  <sensor name='mpu6050'>
+    <state_interface name='orientation.x'/>
+    <state_interface name='orientation.y'/>
+    <state_interface name='orientation.z'/>
+    <state_interface name='orientation.w'/>
+    <state_interface name='angular_velocity.x'/>
+    <state_interface name='angular_velocity.y'/>
+    <state_interface name='angular_velocity.z'/>
+    <state_interface name='linear_acceleration.x'/>
+    <state_interface name='linear_acceleration.y'/>
+    <state_interface name='linear_acceleration.z'/>  
+  </sensor>
+</ros2_control>
+```
+
+#### Actuator
+
+This component type only has 1 DOF. Some examples of these include motors and valves. Actuator components are related to a single joint and have both reading and writing capabilities, however, obtaining state feedback is not mandatory if is inaccessible; for instance, controlling a DC motor that has no encoders.
+
+The image below (adapted from [Denis Štogl](https://vimeo.com/649651707) (CC-BY)) shows the system and sensor components used for the lidarbot base and the MPU6050 module respectively — custom hardware components were written for the [Waveshare Motor Driver HAT](./lidarbot_base/src/lidarbot_hardware.cpp) and the [MPU6050 module](./lidarbot_bringup/src/mpu6050_hardware_interface.cpp) using the [MPU6050 library](#mpu6050-library).
+
 <p align="center">
-  <img title='ros2 control architecture' src=docs/images/ros2_control_arch.png width="800">
+  <img title='hardware components' src=docs/images/hardwarecomp.png width="400">
 </p>
 
-Image adapted from [Denis Štogl](https://vimeo.com/649651707) (CC-BY)
+The coloured icons represent the state and command interfaces of the hardware components. The state interfaces for the respective cartesian axes, associated with the MPU6050 module, were merged into one for clarity.
 
-### Differential Drive Controller
+### Resource Manager
 
-### Joint State Broadcaster
+The Resource Manager (RM) abstracts the hardware components for the `ros2_control` framework. The RM is responsible for loading the components using the `pluginlib`-library, managing their lifecycle and components’ state and command interfaces. In the control loop execution, which is managed by the Controller Manager, the RM’s `read()` and `write()` methods handle the communication with the hardware components. 
 
-### IMU Sensor Broadcaster
+The abstraction provided by RM allows reuse of implemented hardware components. A sensor component, like the MPU6050 module, has only reading capabilities, thus it can be shared by multiple controllers simultaneously. However, components with command interfaces require exclusive access by only one controller. 
 
-TODO:
-Quick difference between variance and covariances
+The bidirectional arrows in the figure below (adapted from [Denis Štogl](https://vimeo.com/649651707) (CC-BY)) indicate interfaces that have both read and write capabilities, but interfaces that only provide state feedback are represented with unidirectional arrows.
 
-IMU covariances required in `controllers.yaml`
+<p align="center">
+  <img title='resource manager' src=docs/images/resman.png width="400">
+</p>
 
-Generate covariances for MPU6050 module:
+### Controllers
+
+The controllers in the `ros2_control` framework are based on control theory which compare the reference value with the measured output and, based on this error, calculate a system’s input. Controllers access the latest hardware lifecycle state when the Controller Manager’s `update()` method is called and enables them to write to the hardware command interfaces.
+
+There are a number of controllers available for specific hardware configurations, such as ***Ackermann steering controller***, ***bicycle steering controller***, ***gripper controller*** and ***differential drive controller*** (which is used on lidarbot). The full list of controllers is available on the `ros2_controllers` [page](https://control.ros.org/master/doc/ros2_controllers/doc/controllers_index.html). Similar to hardware components, a [guide](https://control.ros.org/master/doc/ros2_controllers/doc/writing_new_controller.html) is also provided on how to write a custom controller if a particular hardware configuration is missing.
+
+#### Differential Drive Controller
+
+The differential drive controller receives `Twist.msg` velocity command messages from the Nav2 stack which are written to the velocity command interfaces of the robot base system hardware component. This in turn drives the motors in accordance with the received velocity command interfaces. This sequence of commands is illustrated in the next image.
+
+#### Joint State Broadcaster
+
+Broadcasters only have reading abilities and are used to publish sensor data from hardware components to ROS topics. The joint state broadcaster reads all state interfaces and reports them on the `/joint_states` and `/dynamic_joint_state` topics. These topics are used by RViz to display the current state of the robot joints.
+
+#### IMU Sensor Broadcaster
+
+The IMU sensor broadcaster on lidarbot publishes `Imu.msg` messages on the topic, `imu_broadcaster/imu`, from the MPU6050 IMU hardware sensor component. The IMU sensor data is utilized by the [`robot_localization`](#robot-localization) package to fuse wheel odometry data with an Extended Kalman Filter (EKF). This is used to improve the robot’s localization for autonomous navigation with the Nav2 framework. The topic connections between Nav2, relevant packages and the lidarbot controllers are presented in the [navigation](#navigation) subsection.
+
+The lidarbot differential drive controller and IMU sensor broadcaster are configured in the [`controllers.yaml`](./lidarbot_bringup/config/controllers.yaml) file in the bringup package; the joint state broadcaster here uses the default parameters so no configuration is needed.
+
+In configuring the IMU sensor broadcaster, the static orientation, velocity and linear acceleration covariances, which have a row major arrangement about the x, y and z axes, need to be calculated. A [covariance matrix](https://www.cuemath.com/algebra/covariance-matrix/), sometimes referred to as a variance-covariance matrix, is a square matrix where the diagonal elements represent the variance and the off-diagonal elements represent the covariance.
+
+Visualizing the static velocity covariance, for instance, with the matrix below, the diagonal elements represent the variance of a chosen sample data size of velocity measurements for the respective axes. While the off-diagonal elements represent the covariance between velocities of two axes over a chosen sample data size.
+
+       ┌──────────┬──────────┬──────────┐
+       │ Var(x,x) │ Cov(x,y) │ Cov(x,z) │
+       ├──────────┼──────────┼──────────┤
+       │ Cov(y,x) │ Var(y,y) │ Cov(y,z) │
+       ├──────────┼──────────┼──────────┤
+       │ Cov(z,x) │ Cov(z,y) │ Var(z,z) │
+       └──────────┴──────────┴──────────┘
+
+The matrix above is represented as a 9 element array, in the IMU Sensor Broadcaster configuration of the [`controllers.yaml`](./lidarbot_bringup/config/controllers.yaml) file for the respective covariances to be calculated.
+
+However, only the variance array elements are calculated. It is assumed that the different axes do not vary together, therefore the off-diagonal elements/covariances are zero. The [`mpu6050_covariances.cpp`](./lidarbot_bringup/src/mpu6050_covariances.cpp) file can be modified to incorporate the covariance calculations later on.
+
+The variance was calculated with a sample data size of **500** points, with a delay of **0.25s** to read non-consecutive values from the MPU6050 module.
+
+Keep the module still then run this node to generate the variances:
 
 ```ros2 run lidarbot_bringup mpu6050_covariances```
 
-Executable output:
+An output similar to the following will be shown in the terminal window
 
 ```
 Please keep the MPU6050 module level and still.
@@ -671,11 +797,29 @@ Paste covariance arrays in the imu_broadcaster ros__parameters section in lidarb
 
 ```
 
+These arrays are then pasted in the `imu_broadcaster ros__parameters` section of the [`controllers.yaml`](./lidarbot_bringup/config/controllers.yaml) file to complete the IMU Sensor Broadcaster configuration.
+
+### Controller Manager
+
+The Controler Manager (CM) is responsible for managing the lifecycle of controllers (for  instance, loading, activating, deactivating and unloading respective controllers) and the interfaces they require. Through the RM, the CM has access to the hardware component interfaces. The Controller Manager connects the controllers and hardware-abstraction sides of the `ros2_control` framework, and also serve as the entry-point for users via ROS services using the [`ros2 cli`](https://control.ros.org/master/doc/ros2_control/ros2controlcli/doc/userdoc.html).
+
+The Controller Manager matches required and provided interfaces, grants contollers access to hardware when enabled, or reports an error if there is an access conflict. The execution of the control-loop is managed by the CM's `update()` method which reads data from the hardward components, updates the outputs of all active controllers, and writes the result to the components.
+
+In essence, the CM manages the controllers, which calculate the commands needed to make the [robot move as desired](https://automaticaddison.com/how-to-control-a-robotic-arm-using-ros-2-control-and-gazebo/).
+
+The following image (adapted from [Denis Štogl](https://vimeo.com/649651707) (CC-BY)) illustrates all the parts of the `ros2_control` framework modified for use on lidarbot.
+
+<p align="center">
+  <img title='ros2 control architecture' src=docs/images/ros2_control_arch.png width="800">
+</p>
+
+The `ros2_control` framework can be explored in more detail by reading the [official documentation](https://control.ros.org/master/doc/getting_started/getting_started.html), this [article](https://masum919.github.io/ros2_control_explained/) from Masum, this [tutorial](https://articulatedrobotics.xyz/tutorials/mobile-robot/applications/ros2_control-concepts/) from Articulated Robotics and the [preprint]((http://dx.doi.org/10.13140/RG.2.2.15748.54408)) of this project.
+
 ## Test Drive
 
-### Gazebo
+<!-- ### Gazebo -->
 
-### Lidarbot
+<!-- ### Lidarbot -->
 
 ### Motor Connection Checks
 
@@ -733,7 +877,6 @@ ros2 launch lidarbot_bringup lidarbot_bringup_launch.py
 
 **Note:** There are some warning and error messages outputted to the terminal related to the camera. These are mostly related to calibrating the camera and can be ignored. 
 
-
 ### Robot localization
 
 TODO:
@@ -743,6 +886,7 @@ ekf.yaml
 ```
 ros2 launch lidarbot_bringup lidarbot_bringup_launch.py use_robot_localization:=false
 ```
+
 ## Mapping
 
 TODO: Brief overview of slam_toolbox
@@ -903,15 +1047,14 @@ Launch file to bringup the usb driver and aruco trajectory visualizer node:
 ```bash
 ros2 launch lidarbot_aruco trajectory_visualizer_launch.py
 ```
+
 <p align='center'>
     <img src=docs/images/lidarbot_aruco_marker.png width="600">
 </p>
 
-
 <p align='center'>
     <img src=docs/images/lidarbot_aruco_test.gif width="800">
 </p>
-
 
 ## Navigation
 
@@ -941,7 +1084,7 @@ ros2 launch lidarbot_gazebo gazebo_launch.py
 
 Navigate to the development workspace and open the following terminals.
 
-To open `rviz`:
+To open `RViz`:
 
 ```
 rviz2 -d src/lidarbot_navigation/rviz/lidarbot_nav.rviz
@@ -959,7 +1102,7 @@ ros2 launch lidarbot_navigation navigation_launch.py use_sim_time:=true \
 map_subscribe_transient_local:=true
 ```
 
-In `rviz`, set the initial pose using the `2D Pose Estimate` button in the toolbar so that lidarbot is aligned correctly both in `rviz` and Gazebo Classic. Afterwards, click on the `2D Goal Pose` and choose a place on the map for lidarbot to navigate to:
+In `RViz`, set the initial pose using the `2D Pose Estimate` button in the toolbar so that lidarbot is aligned correctly both in `RViz` and Gazebo Classic. Afterwards, click on the `2D Goal Pose` and choose a place on the map for lidarbot to navigate to:
 
 <p align='center'>
     <img src=docs/images/gazebo_navigation.gif width="800">
