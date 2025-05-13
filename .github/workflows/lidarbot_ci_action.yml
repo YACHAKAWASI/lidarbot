@@ -34,7 +34,6 @@ jobs:
           lidarbot_base
           lidarbot_bringup
           lidarbot_description
-          lidarbot_gazebo
           lidarbot_gz
           lidarbot_navigation
           lidarbot_slam

@@ -883,13 +883,10 @@ ros2 launch lidarbot_bringup lidarbot_bringup_launch.py
 
 ### Robot localization
 
-TODO:
+Before setting up lidarbot for autonomous navigation with the Nav2 stack, its wheel encoder and IMU sensor data are fused. Slipping between the wheels and the ground is [common in differential drive robots](https://www.sciencedirect.com/science/article/pii/S1474667016428909), and can lead to substantial deviation from the actual position of a wheeled mobile robot from its desired position. Fusing different sensor data aids in correcting for this variation. An Extended Kalman Filter is employed by the [`robot_localization`](https://index.ros.org/p/robot_localization/#humble) package to fuse the wheel odometry and IMU sensor data to obtain more accurate robot odometry estimates. 
 
-ekf.yaml
+This results in improved robot navigation as the Nav2 stack makes use of odometry data to estimate the pose (position and orientation) of the robot. The wheel odometry and IMU sensor data are obtained from the differential drive controller topic, `diff_controller/odom`, and the IMU sensor broadcaster topic, `imu_broadcaster/imu` respectively. 
 
-```
-ros2 launch lidarbot_bringup lidarbot_bringup_launch.py use_robot_localization:=false
-```
 
 ## Mapping
 
@@ -1062,6 +1059,7 @@ ros2 launch lidarbot_aruco trajectory_visualizer_launch.py
 
 ## Navigation
 
+
 <p align='center'>
     <img src=docs/images/nav2_topics.png width="800">
 </p>
@@ -1136,8 +1134,6 @@ ros2 launch lidarbot_navigation localization_launch.py map:=./real_map.yaml use_
 ros2 launch lidarbot_navigation navigation_launch.py use_sim_time:=false \
 map_subscribe_transient_local:=true
 ```
-
-Using navigation goal button from nav2 plugin
 
 ## Acknowledgment
 
