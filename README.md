@@ -1,6 +1,6 @@
 # Lidarbot
 
-![ROS2 CI](https://github.com/TheNoobInventor/lidarbot/actions/workflows/.github/workflows/lidarbot_ci_action.yml/badge.svg)
+<!-- ![ROS2 CI](https://github.com/TheNoobInventor/lidarbot/actions/workflows/.github/workflows/lidarbot_ci_action.yml/badge.svg) -->
 
 A differential drive robot is controlled using ROS2 Humble running on a Raspberry Pi 4 (running Ubuntu server 22.04). The vehicle is equipped with a Raspberry Pi camera for visual feedback and an RPlidar A1 sensor used for Simultaneous Localization and Mapping (SLAM), autonomous navigation using the Nav2 stack. Additionally, an MPU6050 inertial measurement unit (IMU) is employed by the `robot_localization` package on the robot, to fuse IMU sensor data and the wheel encoders data, using an Extended Kalman Filter (EKF) node, to provide more accurate robot odometry estimates.
 
@@ -43,18 +43,20 @@ A preprint of this work is available [here](http://dx.doi.org/10.13140/RG.2.2.15
       - [IMU Sensor Broadcaster](#imu-sensor-broadcaster)
     - [Controller Manager](#controller-manager)
   - [Test Drive](#test-drive)
-    - [Motor Connection Checks](#motor-connection-checks)
-    - [Robot localization](#robot-localization)
-  - [Mapping](#mapping)
     - [Gazebo](#gazebo)
     - [Lidarbot](#lidarbot-1)
+  - [Navigation](#navigation)
+    - [Robot localization](#robot-localization)
+    - [Mapping](#mapping)
+      - [Gazebo](#gazebo-1)
+      - [Lidarbot](#lidarbot-2)
+  - [Navigation](#navigation-1)
+    - [Gazebo](#gazebo-2)
+    - [Lidarbot](#lidarbot-3)
   - [Aruco package](#aruco-package)
     - [Generate ArUco marker](#generate-aruco-marker)
     - [Webcam calibration](#webcam-calibration)
-    - [Aruco trajectory visualizer node](#aruco-trajectory-visualizer-node)
-  - [Navigation](#navigation)
-    - [Gazebo](#gazebo-1)
-    - [Lidarbot](#lidarbot-2)
+      - [Aruco trajectory visualizer node](#aruco-trajectory-visualizer-node)
   - [Acknowledgment](#acknowledgment)
 
 
@@ -818,15 +820,25 @@ The following image (adapted from [Denis Štogl](https://vimeo.com/649651707) (C
   <img title='ros2 control architecture' src=docs/images/ros2_control_arch.png width="800">
 </p>
 
-The `ros2_control` framework can be explored in more detail by reading the [official documentation](https://control.ros.org/master/doc/getting_started/getting_started.html), this [article](https://masum919.github.io/ros2_control_explained/) from Masum, this [tutorial](https://articulatedrobotics.xyz/tutorials/mobile-robot/applications/ros2_control-concepts/) from Articulated Robotics and the [preprint](http://dx.doi.org/10.13140/RG.2.2.15748.54408) of this project.
+The `ros2_control` framework can be explored in more detail by reading the [official documentation](https://control.ros.org/master/doc/getting_started/getting_started.html), this [article](https://masum919.github.io/ros2_control_explained/) from Masum, this [tutorial](https://articulatedrobotics.xyz/tutorials/mobile-robot/applications/ros2_control-concepts/) from Articulated Robotics and the [preprint](http://dx.doi.org/10.13140/RG.2.2.15748.54408) for this project.
 
 ## Test Drive
 
-<!-- ### Gazebo -->
+### Gazebo
 
-<!-- ### Lidarbot -->
+To drive lidarbot around in Gazebo Fortress, first ensure that the USB dongle of the gamepad is plugged in to the development machine then run this bringup:
 
-### Motor Connection Checks
+```
+ros2 launch lidarbot_gz gz_launch.py
+```
+
+The GIF below shows lidarbot being driven around by the gamepad (with the gamepad configuration presented [here](#teleoperation)) in a [world made up of obstacles](https://articulatedrobotics.xyz/tutorials/mobile-robot/concept-design/concept-gazebo#making-an-obstacle-course). 
+
+<p align='center'>
+    <img src=docs/images/gazebo_test_drive.gif width="600">
+</p>
+
+### Lidarbot
 
 A [ROS service](https://foxglove.dev/blog/creating-ros2-services) was written to test the connections of the motor(s) and by extension to know if the motor is faulty. Before running the tests, ensure that the 18650 batteries are charged, then prop the robot on a box or similar to prevent it falling off an edge for instance. 
 
@@ -873,13 +885,17 @@ These are the steps followed by the server node:
 
 If a motor moves backward instead of forward, swap the cables for the specific motor to change the direction.
 
-After it is confirmed that both motors moved forward, lidarbot can be driven around with the gamepad (with the joystick and button configuration presented [here](#teleoperation)) by running this command:
+After it is confirmed that both motors moved forward, lidarbot can be driven around with the gamepad after running this command:
 
 ```
 ros2 launch lidarbot_bringup lidarbot_bringup_launch.py
 ```
 
+This launch file brings up the physical lidarbot, raspberry pi camera, RPLIDAR A1 and also integrates `ros2_control`, `twist_mux`, `robot_localization` and gamepad/joystick control.
+
 **Note:** There are some warning and error messages outputted to the terminal related to the camera. These are mostly related to calibrating the camera and can be ignored. 
+
+## Navigation
 
 ### Robot localization
 
@@ -887,12 +903,30 @@ Before setting up lidarbot for autonomous navigation with the Nav2 stack, its wh
 
 This results in improved robot navigation as the Nav2 stack makes use of odometry data to estimate the pose (position and orientation) of the robot. The wheel odometry and IMU sensor data are obtained from the differential drive controller topic, `diff_controller/odom`, and the IMU sensor broadcaster topic, `imu_broadcaster/imu` respectively. 
 
+The EKF is configured using this [guide](https://docs.ros.org/en/noetic/api/robot_localization/html/configuring_robot_localization.html) from the `robot_localization` documentation. The `ekf.yaml`configuration file is available [here](./lidarbot_navigation/config/ekf.yaml).
 
-## Mapping
+<!-- By default `use_robot_localization` argument is set to True for both Gazebo and real world bringup. 
+
+IS this necessary state? -->
+
+```
+ros2 launch lidarbot_bringup lidarbot_bringup_launch.py use_robot_localization:=false
+```
+
+### Mapping
+
+<!-- The Nav2 stack uses laser scan data to build a map of
+an environment and to localize the robot in the map while
+in motion. The SLAM package, `slam_toolbox` [35], is
+used to generate a map of Lidarbot’s surroundings with
+the RPLIDAR A1 by driving the robot around using the
+`teleop_twist_keyboard` package [36] or a gamepad. Fig-
+ures 7 and 8 show the Lidarbot environment and the generated
+map of this environment respectively. -->
 
 TODO: Brief overview of slam_toolbox
 
-### Gazebo
+#### Gazebo
 
 Before starting the mapping operation, ensure that the `mode` key, under `ROS Parameters` in the [`mapper_params_online_async.yaml`](./lidarbot_slam/config/mapper_params_online_async.yaml) file, is set to `mapping` and also that the `map_file_name`, `map_start_pose` and the `map_start_at_dock` keys are commented out:
 
@@ -949,15 +983,15 @@ After generating the map, in the **SlamToolboxPlugin** in RViz, type in a name f
 
 The saved map can be found in the workspace directory and will be used by [Nav2 stack](https://navigation.ros.org/) for navigation. 
 
-### Lidarbot
+#### Lidarbot
 
-Run the following command on lidarbot to brings up the camera, lidar and joystick:
+To begin mapping in the real world, first run the bringup command:
 
 ```
 ros2 launch lidarbot_bringup lidarbot_bringup_launch.py
 ```
 
-First ensure that the [`mapper_params_online_async.yaml`](./lidarbot_slam/config/mapper_params_online_async.yaml) file is configured for mapping (refer to the previous subsection). Then open a new terminal, on the development machine, navigate to the workspace directory and launch `slam_toolbox` with the `use_sim_time` parameter set to `false`:
+Then ensure that the [`mapper_params_online_async.yaml`](./lidarbot_slam/config/mapper_params_online_async.yaml) file is configured for mapping (refer to the previous subsection). Then open a new terminal, on the development machine, navigate to the workspace directory and launch `slam_toolbox` with the `use_sim_time` parameter set to `false`:
 
 ```
 ros2 launch lidarbot_slam online_async_launch.py \
@@ -978,88 +1012,39 @@ Drive around the environment to generate a map:
 
 Then save the generated map.
 
-## Aruco package
-
-### Generate ArUco marker
-
-The `opencv-contrib-python` module needs to be installed and not `opencv-python`: 
-
-```
-pip uninstall opencv-python
-pip install opencv-contrib-python
-```
-The computer might need to be restarted for the install to be effected.
-
-Next navigate to the path in the `lidarbot_aruco` directory:
-
-```
-cd ~/dev_ws/lidarbot_aruco/lidarbot_aruco
-```
-
-Then run the following script:
-
-```python
-python generate_aruco_marker.py --id 24 --type DICT_4X4_50 \
-	--output ../tags/DICT_4X4_50_id24.png
-```
-
-The script arguments:
-
-`--id` : The unique identifier of the ArUco tag — this is a required argument and ID must be a valid ID in the ArUco dictionary used to generate the tag
-    
-`--type` : The name of the ArUco dictionary used to generate the tag; the default type is `DICT_4X4_50`
-
-`--output` : The path to the output image where the generated ArUco tag will be saved; this is a required argument
-
-Running the previous script opens a window with the generated ArUco tag displayed,
-
-<p align='center'>
-    <img src=docs/images/generated_aruco_marker.png width="400">
-</p>
-
-To close the window, press the **q** key on the keyboard on the opened window.
-
-### Webcam calibration
-
-The Logitech webcam C270 HD is used in this project and needs to be calibrated.
-
-First install the [ROS usb camera driver](https://index.ros.org/r/usb_cam/#humble) package:
-
-```bash
-sudo apt install ros-humble-usb-cam
-```
-
-Camera calibration was done following the steps outlined this [guide](https://automaticaddison.com/how-to-perform-pose-estimation-using-an-aruco-marker/)
-
-Execute the command below to run the usb-cam driver node:
-
-```bash
-ros2 run usb_cam usb_cam_node_exe --ros-args --params-file ~/dev_ws/src/lidarbot_aruco/config/params_1.yaml
-```
-
-### Aruco trajectory visualizer node
-
-```bash
-ros2 run lidarbot_aruco aruco_trajectory_visualizer_node
-```
-
-Launch file to bringup the usb driver and aruco trajectory visualizer node:
-
-```bash
-ros2 launch lidarbot_aruco trajectory_visualizer_launch.py
-```
-
-<p align='center'>
-    <img src=docs/images/lidarbot_aruco_marker.png width="600">
-</p>
-
-<p align='center'>
-    <img src=docs/images/lidarbot_aruco_test.gif width="800">
-</p>
-
 ## Navigation
 
+<!-- To localize a robot in a given map, Nav2 makes use of
+the Adaptive Monte Carlo Localization (AMCL) package,
+nav2_amcl. This a probabilistic localization module that out-
+puts the pose estimates of a robot taking LIDAR scans, a map
+(from the Nav2 map_server) and transform messages as in-
+puts.
 
+After configuring the required parameters for Nav2 using
+the setup guide [37] and running the localization and navi-
+gation launch files in the lidarbot_navigation package,
+navigating on Lidarbot is initiated. First off, the initial pose
+of the robot on the map is set by clicking the “2D Pose Estimate” button on top of the Rviz2 screen to match Lidarbot’s
+real world pose. Next click the “Navigation2 Goal” button,
+then on a desired destination for Lidarbot to navigate to.
+
+It was noted in subsection 2.3 that the Nav2 stack
+outputs command velocity messages to the differen-
+tial drive controller.
+These are sent on the topic
+/chosen_controller_name/cmd_vel_unstamped which
+is /diff_controller/cmd_vel_unstamped for Lidarbot.
+The velocity messages are sent to the robot base system hard-
+ware component to drive the motors. The updated robot
+odometry data from this motion is sent to the EKF on the
+topic /diff_controller/odom, and fused with the IMU
+data. The fused odometry data is input into Nav2, in addition
+to the laser scan data, occupancy grid map and transform mes-
+sages, to output new velocity messages. This process keeps
+iterating as the robot moves towards the goal position.
+
+The Nav2 topic graph is shown in Figure 9. -->
 <p align='center'>
     <img src=docs/images/nav2_topics.png width="800">
 </p>
@@ -1134,6 +1119,101 @@ ros2 launch lidarbot_navigation localization_launch.py map:=./real_map.yaml use_
 ros2 launch lidarbot_navigation navigation_launch.py use_sim_time:=false \
 map_subscribe_transient_local:=true
 ```
+
+<!-- Suggestion of putting all of these commands in one launch file and calling them procedurally with delays to ensure certain processes are
+launched before others to avoid errors. -->
+
+## Aruco package
+
+### Generate ArUco marker
+
+The `opencv-contrib-python` module needs to be installed and not `opencv-python`: 
+
+```
+pip uninstall opencv-python
+pip install opencv-contrib-python
+```
+The computer might need to be restarted for the install to be effected.
+
+Next navigate to the path in the `lidarbot_aruco` directory:
+
+```
+cd ~/dev_ws/lidarbot_aruco/lidarbot_aruco
+```
+
+Then run the following script:
+
+```python
+python generate_aruco_marker.py --id 24 --type DICT_4X4_50 \
+	--output ../tags/DICT_4X4_50_id24.png
+```
+
+The script arguments:
+
+`--id` : The unique identifier of the ArUco tag — this is a required argument and ID must be a valid ID in the ArUco dictionary used to generate the tag
+    
+`--type` : The name of the ArUco dictionary used to generate the tag; the default type is `DICT_4X4_50`
+
+`--output` : The path to the output image where the generated ArUco tag will be saved; this is a required argument
+
+Running the previous script opens a window with the generated ArUco tag displayed,
+
+<p align='center'>
+    <img src=docs/images/generated_aruco_marker.png width="400">
+</p>
+
+To close the window, press the **q** key on the keyboard on the opened window.
+
+### Webcam calibration
+
+The Logitech webcam C270 HD is used in this project and needs to be calibrated.
+
+First install the [ROS usb camera driver](https://index.ros.org/r/usb_cam/#humble) package:
+
+```
+sudo apt install ros-humble-usb-cam
+```
+
+Camera calibration was done following the steps outlined this [guide](https://automaticaddison.com/how-to-perform-pose-estimation-using-an-aruco-marker/)
+
+Execute the command below to run the usb-cam driver node:
+
+```
+ros2 run usb_cam usb_cam_node_exe --ros-args --params-file ~/dev_ws/src/lidarbot_aruco/config/params_1.yaml
+```
+
+#### Aruco trajectory visualizer node
+
+```
+ros2 run lidarbot_aruco aruco_trajectory_visualizer_node
+```
+
+Launch file to bringup the usb driver and aruco trajectory visualizer node:
+
+```
+ros2 launch lidarbot_aruco trajectory_visualizer_launch.py
+```
+
+<p align='center'>
+    <img src=docs/images/lidarbot_aruco_marker.png width="600">
+</p>
+
+<p align='center'>
+    <img src=docs/images/lidarbot_aruco_test.gif width="800">
+</p>
+
+
+<!-- An ArUco marker was placed on top of Lidarbot to track its
+trajectory during navigation, a Logitech C270 webcam was
+utilized in tracking the marker. -->
+
+<p align='center'>
+    <img src=docs/images/nav_start.png width="400">
+</p>
+
+<p align='center'>
+    <img src=docs/images/nav_end.png width="400">
+</p>
 
 ## Acknowledgment
 

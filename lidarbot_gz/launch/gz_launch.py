@@ -151,7 +151,10 @@ def generate_launch_description():
         condition=IfCondition(use_robot_localization),
         package="robot_localization",
         executable="ekf_node",
-        parameters=[ekf_params_file],
+        parameters=[
+            ekf_params_file,
+            {'use_sim_time': LaunchConfiguration('use_sim_time')},
+            ],
         remappings=[("/odometry/filtered", "/odom")],
     )
 
@@ -159,9 +162,12 @@ def generate_launch_description():
     start_joystick_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             [os.path.join(pkg_teleop, "launch", "joystick_launch.py")]
-        )
+    ),
+        launch_arguments={
+            "use_sim_time": use_sim_time,
+        }.items(),
     )
-
+    
     # Start twist mux
     start_twist_mux_cmd = Node(
         package="twist_mux",
