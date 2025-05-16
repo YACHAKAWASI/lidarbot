@@ -43,20 +43,19 @@ A preprint of this work is available [here](http://dx.doi.org/10.13140/RG.2.2.15
       - [IMU Sensor Broadcaster](#imu-sensor-broadcaster)
     - [Controller Manager](#controller-manager)
   - [Test Drive](#test-drive)
-    - [Gazebo](#gazebo)
-    - [Lidarbot](#lidarbot-1)
-  - [Navigation](#navigation)
     - [Robot localization](#robot-localization)
-    - [Mapping](#mapping)
-      - [Gazebo](#gazebo-1)
-      - [Lidarbot](#lidarbot-2)
-  - [Navigation](#navigation-1)
+    - [Gazebo](#gazebo)
+    - [Physical](#physical)
+  - [Mapping](#mapping)
+    - [Gazebo](#gazebo-1)
+    - [Physical](#physical-1)
+  - [Navigation](#navigation)
     - [Gazebo](#gazebo-2)
-    - [Lidarbot](#lidarbot-3)
+    - [Physical](#physical-2)
   - [Aruco package](#aruco-package)
     - [Generate ArUco marker](#generate-aruco-marker)
     - [Webcam calibration](#webcam-calibration)
-      - [Aruco trajectory visualizer node](#aruco-trajectory-visualizer-node)
+    - [Aruco trajectory visualizer node](#aruco-trajectory-visualizer-node)
   - [Acknowledgment](#acknowledgment)
 
 
@@ -373,7 +372,7 @@ Setting `require_enable_button` to `true` ensures that L1 has to be held before 
 
 To enable turbo mode for faster speed, the `enable_turbo_button` option in the config file can be set to an unused button axis.
 
-The `joy_node` parameter, `deadzone`, specifies the amount a joystick has to be moved for it to be [considered to be away from the center](https://github.com/ros-drivers/joystick_drivers/blob/ros2/joy/README.md). This parameter is normalized between -1 and 1. A value of `0.25` indicates that the joytsick has to be moved 25% of the way to the edge of an axis's range before that axis will output a non-zero value. 
+The `joy_node` parameter, `deadzone`, specifies the amount a joystick has to be moved for it to be [considered to be away from the center](https://github.com/ros-drivers/joystick_drivers/blob/ros2/joy/README.md). This parameter is normalized between `-1` and `1`. A value of `0.25` indicates that the joytsick has to be moved `25%` of the way to the edge of an axis's range before that axis will output a non-zero value. 
 
 The `deadzone` parameter should be tuned to suit the performance of user's game controller.
 
@@ -427,7 +426,7 @@ rosdep install --from-paths src --ignore-src -r -y \
 --skip-keys "rviz2 gazebo_ros2_control gazebo_ros_pkgs" --rosdistro humble
 ```
 
-`rviz2` and the Gazebo related packages are skipped in the ROS dependency installation process as they are only run on the PC and not on the robot --- the rosdep keys for the ROS2 Humble distribution are available [here](https://github.com/ros/rosdistro/blob/master/humble/distribution.yaml).
+`rviz2` and the Gazebo related packages are skipped in the ROS dependency installation process as they are only run on the PC and not on the robot --- the `rosdep` keys for the ROS2 Humble distribution are available [here](https://github.com/ros/rosdistro/blob/master/humble/distribution.yaml).
 
 [WiringPi i2c library](#wiringpi) and [MPU6050 RPi 4 C++ library](#mpu6050-library) are also installed before building the workspace --- a `Downloads` directory will need to be created to clone the WiringPi files.
 
@@ -443,7 +442,6 @@ colcon build --symlink-install
 #### Motor Driver HAT
 
 Waveshare's Motor Driver HAT was used to control the motors of lidarbot. The relevant files are found in the [`include`](./lidarbot_base/include/lidarbot_base/) and [`src`](./lidarbot_base/src/) directories of the [`lidarbot_base`](./lidarbot_base/) package, the file tree of these directories are as shown, 
-
 
 ```
 ├── CMakeLists.txt
@@ -786,7 +784,9 @@ The variance was calculated with a sample data size of **500** points, with a de
 
 Keep the module still then run this node to generate the variances:
 
-```ros2 run lidarbot_bringup mpu6050_covariances```
+```
+ros2 run lidarbot_bringup mpu6050_covariances
+```
 
 An output similar to the following will be shown in the terminal window
 
@@ -824,9 +824,22 @@ The `ros2_control` framework can be explored in more detail by reading the [offi
 
 ## Test Drive
 
+### Robot localization
+
+Before setting up lidarbot for autonomous navigation with the Nav2 stack, its wheel encoder and IMU sensor data are fused. Slipping between the wheels and the ground is [common in differential drive robots](https://www.sciencedirect.com/science/article/pii/S1474667016428909), and can lead to substantial deviation from the actual position of a wheeled mobile robot from its desired position. Fusing different sensor data aids in correcting for this variation. An Extended Kalman Filter is employed by the [`robot_localization`](https://index.ros.org/p/robot_localization/#humble) package to fuse the wheel odometry and IMU sensor data to obtain more accurate robot odometry estimates. 
+
+This results in improved robot navigation as the Nav2 stack makes use of odometry data to estimate the pose (position and orientation) of the robot. The wheel odometry and IMU sensor data are obtained from the differential drive controller topic, `diff_controller/odom`, and the IMU sensor broadcaster topic, `imu_broadcaster/imu` respectively. 
+
+The EKF is configured using this [guide](https://docs.nav2.org/setup_guides/odom/setup_robot_localization.html) from Nav2; more information about the `robot_localization` package can be found in the [official documenation](https://docs.ros.org/en/noetic/api/robot_localization/html/configuring_robot_localization.html). The EKF configuration file, `ekf.yaml`, is available [here](./lidarbot_navigation/config/ekf.yaml).
+
+By default the Gazebo and real world lidarbot bringup launch files have the `use_robot_localization` argument set to `true` but this can also be set to `false` if one chooses to do so.
+
+```
+ros2 launch lidarbot_bringup lidarbot_bringup_launch.py use_robot_localization:=false
+```
 ### Gazebo
 
-To drive lidarbot around in Gazebo Fortress, first ensure that the USB dongle of the gamepad is plugged in to the development machine then run this bringup:
+To drive lidarbot around in Gazebo Fortress, first ensure that the USB dongle of the gamepad is plugged in to the development machine then run this command to bringup lidarbot, sensors and also integrates `ros2_control`, `twist_mux`, `robot_localization` and gamepad/joystick control:
 
 ```
 ros2 launch lidarbot_gz gz_launch.py
@@ -838,7 +851,7 @@ The GIF below shows lidarbot being driven around by the gamepad (with the gamepa
     <img src=docs/images/gazebo_test_drive.gif width="600">
 </p>
 
-### Lidarbot
+### Physical
 
 A [ROS service](https://foxglove.dev/blog/creating-ros2-services) was written to test the connections of the motor(s) and by extension to know if the motor is faulty. Before running the tests, ensure that the 18650 batteries are charged, then prop the robot on a box or similar to prevent it falling off an edge for instance. 
 
@@ -895,38 +908,11 @@ This launch file brings up the physical lidarbot, raspberry pi camera, RPLIDAR A
 
 **Note:** There are some warning and error messages outputted to the terminal related to the camera. These are mostly related to calibrating the camera and can be ignored. 
 
-## Navigation
+## Mapping
 
-### Robot localization
+The Nav2 stack uses laser scan data to build a map of an environment and to localize the robot in the map while in motion. The SLAM package, [`slam_toolbox`](https://joss.theoj.org/papers/10.21105/joss.02783.pdf), is used to generate a map of Lidarbot’s surroundings with the RPLIDAR A1 by driving the robot around using the [`teleop_twist_joy`](https://index.ros.org/r/teleop_twist_joy/) package with the [gamepad](./lidarbot_teleop/launch/joystick_launch.py).
 
-Before setting up lidarbot for autonomous navigation with the Nav2 stack, its wheel encoder and IMU sensor data are fused. Slipping between the wheels and the ground is [common in differential drive robots](https://www.sciencedirect.com/science/article/pii/S1474667016428909), and can lead to substantial deviation from the actual position of a wheeled mobile robot from its desired position. Fusing different sensor data aids in correcting for this variation. An Extended Kalman Filter is employed by the [`robot_localization`](https://index.ros.org/p/robot_localization/#humble) package to fuse the wheel odometry and IMU sensor data to obtain more accurate robot odometry estimates. 
-
-This results in improved robot navigation as the Nav2 stack makes use of odometry data to estimate the pose (position and orientation) of the robot. The wheel odometry and IMU sensor data are obtained from the differential drive controller topic, `diff_controller/odom`, and the IMU sensor broadcaster topic, `imu_broadcaster/imu` respectively. 
-
-The EKF is configured using this [guide](https://docs.ros.org/en/noetic/api/robot_localization/html/configuring_robot_localization.html) from the `robot_localization` documentation. The `ekf.yaml`configuration file is available [here](./lidarbot_navigation/config/ekf.yaml).
-
-<!-- By default `use_robot_localization` argument is set to True for both Gazebo and real world bringup. 
-
-IS this necessary state? -->
-
-```
-ros2 launch lidarbot_bringup lidarbot_bringup_launch.py use_robot_localization:=false
-```
-
-### Mapping
-
-<!-- The Nav2 stack uses laser scan data to build a map of
-an environment and to localize the robot in the map while
-in motion. The SLAM package, `slam_toolbox` [35], is
-used to generate a map of Lidarbot’s surroundings with
-the RPLIDAR A1 by driving the robot around using the
-`teleop_twist_keyboard` package [36] or a gamepad. Fig-
-ures 7 and 8 show the Lidarbot environment and the generated
-map of this environment respectively. -->
-
-TODO: Brief overview of slam_toolbox
-
-#### Gazebo
+### Gazebo
 
 Before starting the mapping operation, ensure that the `mode` key, under `ROS Parameters` in the [`mapper_params_online_async.yaml`](./lidarbot_slam/config/mapper_params_online_async.yaml) file, is set to `mapping` and also that the `map_file_name`, `map_start_pose` and the `map_start_at_dock` keys are commented out:
 
@@ -948,6 +934,12 @@ mode: mapping #localization
 ```
 
 To start mapping in a simulation environment, launch the Gazebo simulation of lidarbot on the development machine (which includes the joystick node for teleoperation):
+
+```
+ros2 launch lidarbot_gz gz_launch.py
+```
+
+For Gazebo Fortress run:
 
 ```
 ros2 launch lidarbot_gazebo gazebo_launch.py
@@ -983,7 +975,7 @@ After generating the map, in the **SlamToolboxPlugin** in RViz, type in a name f
 
 The saved map can be found in the workspace directory and will be used by [Nav2 stack](https://navigation.ros.org/) for navigation. 
 
-#### Lidarbot
+### Physical
 
 To begin mapping in the real world, first run the bringup command:
 
@@ -998,6 +990,7 @@ ros2 launch lidarbot_slam online_async_launch.py \
 slam_params_file:=src/lidarbot_slam/config/mapper_params_online_async.yaml \
 use_sim_time:=false
 ```
+
 In a new terminal, also on the development machine, navigate to the workspace directory again and start `rviz2`:
 
 ```
@@ -1014,48 +1007,19 @@ Then save the generated map.
 
 ## Navigation
 
-<!-- To localize a robot in a given map, Nav2 makes use of
-the Adaptive Monte Carlo Localization (AMCL) package,
-nav2_amcl. This a probabilistic localization module that out-
-puts the pose estimates of a robot taking LIDAR scans, a map
-(from the Nav2 map_server) and transform messages as in-
-puts.
+To localize a robot in a given map, Nav2 makes use of the Adaptive Monte Carlo Localization (AMCL) package, `nav2_amcl`. This a probabilistic localization module that outputs the pose estimates of a robot taking LIDAR scans, a map (from the Nav2 `map_server`) and transform messages as inputs.
 
-After configuring the required parameters for Nav2 using
-the setup guide [37] and running the localization and navi-
-gation launch files in the lidarbot_navigation package,
-navigating on Lidarbot is initiated. First off, the initial pose
-of the robot on the map is set by clicking the “2D Pose Estimate” button on top of the Rviz2 screen to match Lidarbot’s
-real world pose. Next click the “Navigation2 Goal” button,
-then on a desired destination for Lidarbot to navigate to.
+It was noted in the [controllers subsection](#controllers) that the Nav2 stack outputs command velocity messages to the differential drive controller. These are sent on the topic `diff_controller/cmd_vel_unstamped` for lidarbot. The velocity messages are sent to the robot base system hardware component to drive the motors. The updated robot odometry data from this motion is sent to the EKF on the topic `/diff_controller/odom`, and fused with the IMU data from the `imu_broadcaster/imu` topic. The fused odometry data is input into Nav2, in addition to the laser scan data, occupancy grid map and transform messages, to output new velocity messages. This process keeps iterating as the robot moves towards the goal position.
 
-It was noted in subsection 2.3 that the Nav2 stack
-outputs command velocity messages to the differen-
-tial drive controller.
-These are sent on the topic
-/chosen_controller_name/cmd_vel_unstamped which
-is /diff_controller/cmd_vel_unstamped for Lidarbot.
-The velocity messages are sent to the robot base system hard-
-ware component to drive the motors. The updated robot
-odometry data from this motion is sent to the EKF on the
-topic /diff_controller/odom, and fused with the IMU
-data. The fused odometry data is input into Nav2, in addition
-to the laser scan data, occupancy grid map and transform mes-
-sages, to output new velocity messages. This process keeps
-iterating as the robot moves towards the goal position.
+The Nav2 topic graph is shown in the following image adapted from [Linorobot2](https://github.com/linorobot/linorobot2).
 
-The Nav2 topic graph is shown in Figure 9. -->
 <p align='center'>
     <img src=docs/images/nav2_topics.png width="800">
 </p>
 
-Image adapted from [Linorobot2](https://github.com/linorobot/linorobot2) 
-
-TODO: Brief overview
-
 ### Gazebo
 
-Nav2's `amcl` package is used for localization with the map generated from `slam_toolbox`. 
+Lidarbot will be localized and navigated within the map previously generated with the `slam_toolbox`.
 
 Bring up lidarbot in Gazebo Fortress:
 
@@ -1077,17 +1041,21 @@ To open `RViz`:
 rviz2 -d src/lidarbot_navigation/rviz/lidarbot_nav.rviz
 ```
 
-To localize lidarbot with `amcl` in the map generated by `slam_toolbox`:
+To localize lidarbot in the map with `nav2_amcl`:
+
 ```
 ros2 launch lidarbot_navigation localization_launch.py \
 map:=./src/lidarbot_navigation/maps/sim_map.yaml use_sim_time:=true
 ```
 
 To launch navigation:
+
 ```
 ros2 launch lidarbot_navigation navigation_launch.py use_sim_time:=true \
 map_subscribe_transient_local:=true
 ```
+
+Make sure to set the `use_sim_time` argument to `true`.
 
 In `RViz`, set the initial pose using the `2D Pose Estimate` button in the toolbar so that lidarbot is aligned correctly both in `RViz` and Gazebo Classic. Afterwards, click on the `2D Goal Pose` and choose a place on the map for lidarbot to navigate to:
 
@@ -1095,35 +1063,55 @@ In `RViz`, set the initial pose using the `2D Pose Estimate` button in the toolb
     <img src=docs/images/gazebo_navigation.gif width="800">
 </p>
 
+The blue arrows indicate unfiltered odometry, while the green ones are the filtered odometry. 
+
 TODO: add gif of navigation in Gazebo Fortress
 
-Note about the pixels not part of the map
+### Physical
 
-The blue arrow shows unfiltered odometry, while green shows the filtered odometry. 
-
-### Lidarbot
+Run a similar set on commands on the physical lidarbot for localization and navigation. Bring up lidarbot:
 
 ```
 ros2 launch lidarbot_bringup lidarbot_bringup_launch.py
 ```
 
+Launch `RViz`:
+
 ```
 rviz2 -d src/lidarbot_navigation/rviz/lidarbot_nav.rviz
 ```
 
+To localize lidarbot in the map with `nav2_amcl`:
+
 ```
 ros2 launch lidarbot_navigation localization_launch.py map:=./real_map.yaml use_sim_time:=false
 ```
+
+To launch navigation:
 
 ```
 ros2 launch lidarbot_navigation navigation_launch.py use_sim_time:=false \
 map_subscribe_transient_local:=true
 ```
 
-<!-- Suggestion of putting all of these commands in one launch file and calling them procedurally with delays to ensure certain processes are
-launched before others to avoid errors. -->
+Make sure to set the `use_sim_time` argument to `false`.
+
+Similarly, set the initial pose using the `2D Pose Estimate` button in the `RViz` toolbar so that lidarbot is aligned correctly both in `RViz` and in its environment. Afterwards, click on the `2D Goal Pose` and choose a place on the map for lidarbot to navigate to. 
+
+To save time, all of these commands can be called from one launch file and adding delays where necessary to ensure certain processes are launched before others to avoid errors. Additional information on setting up navigation with Nav2 is available in this [setup guide](https://docs.nav2.org/setup_guides/index.html).
+
+An ArUco marker was placed on top of lidarbot to track its trajectory during navigation, a Logitech C270 webcam was utilized in tracking the marker.
 
 ## Aruco package
+
+<!-- Pose estimation is of great importance in many computer vision applications: robot navigation, augmented reality, and many more. This process is based on finding correspondences between points in the real environment and their 2d image projection. This is usually a difficult step, and thus it is common to use synthetic or fiducial markers to make it easier.
+
+One of the most popular approaches is the use of binary square fiducial markers. The main benefit of these markers is that a single marker provides enough correspondences (its four corners) to obtain the camera pose. Also, the inner binary codification makes them specially robust, allowing the possibility of applying error detection and correction techniques.
+
+The aruco module is based on the ArUco library, a popular library for detection of square fiducial markers developed by Rafael Muñoz and Sergio Garrido [98](https://docs.opencv.org/4.x/d0/de3/citelist.html#CITEREF_aruco2014).
+
+An ArUco marker is a synthetic square marker composed by a wide black border and an inner binary matrix which determines its identifier (id). The black border facilitates its fast detection in the image and the binary codification allows its identification and the application of error detection and correction techniques. The marker size determines the size of the internal matrix. For instance a marker size of 4x4 is composed by 16 bits. -->
+
 
 ### Generate ArUco marker
 
@@ -1182,7 +1170,7 @@ Execute the command below to run the usb-cam driver node:
 ros2 run usb_cam usb_cam_node_exe --ros-args --params-file ~/dev_ws/src/lidarbot_aruco/config/params_1.yaml
 ```
 
-#### Aruco trajectory visualizer node
+### Aruco trajectory visualizer node
 
 ```
 ros2 run lidarbot_aruco aruco_trajectory_visualizer_node
@@ -1202,10 +1190,7 @@ ros2 launch lidarbot_aruco trajectory_visualizer_launch.py
     <img src=docs/images/lidarbot_aruco_test.gif width="800">
 </p>
 
-
-<!-- An ArUco marker was placed on top of Lidarbot to track its
-trajectory during navigation, a Logitech C270 webcam was
-utilized in tracking the marker. -->
+The following images show the start and end positions of navigation with lidarbot.
 
 <p align='center'>
     <img src=docs/images/nav_start.png width="400">

@@ -4,8 +4,8 @@ ekf_filter_node:
 
         use_sim_time: true
         
-        frequency: 50.0
-        two_d_mode: true
+        frequency: 30.0
+        two_d_mode: false #true
 
         map_frame: map
         odom_frame: odom

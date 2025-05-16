@@ -37,7 +37,7 @@ def generate_launch_description():
     ekf_params_file = os.path.join(pkg_navigation, "config/ekf.yaml")
     urdf_model_path = os.path.join(pkg_path, "urdf/lidarbot_gz.urdf.xacro")
     twist_mux_params_file = os.path.join(pkg_teleop, "config/twist_mux.yaml")
-    world_filename = "obstacles.world"
+    world_filename = "obstacles.sdf"
     world_path = os.path.join(pkg_path, "worlds", world_filename)
     set_env_vars_resources = AppendEnvironmentVariable(
         "GZ_SIM_RESOURCE_PATH", os.path.join(pkg_path, "models")
