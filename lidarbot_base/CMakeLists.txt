@@ -9,14 +9,17 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(std_srvs REQUIRED)
 
 # COMPILE
-add_library(lidarbot_hardware SHARED 
-          src/lidarbot_hardware.cpp 
-          src/wheel.cpp 
-          src/MotorDriver.c 
-          src/motor_encoder.c 
-          src/PCA9685.c 
-          src/DEV_Config.c
+add_library(lidarbot_hardware SHARED
+  src/lidarbot_hardware.cpp
+  src/wheel.cpp
+  src/motor_encoder.c
+  src/MotorDriver.c       # ← este es el nuevo que pusimos arriba
+  src/esp32_bridge.c      # ← el bridge I²C
+  src/DEV_Config.c
+  
+  # src/PCA9685.c         # ← comenta/quita si aún estaba
 )
+
 
 target_include_directories(lidarbot_hardware PRIVATE include)
 
@@ -50,15 +53,26 @@ install(
 include_directories(include)
 
 # Add motor_checks_client and motor_checks_server nodes as executables with dependencies
-add_executable(motor_checks_server 
-              src/motor_checks_server.cpp 
-              src/motor_encoder.c   
-              src/DEV_Config.c 
-              src/PCA9685.c 
-              src/MotorDriver.c) 
+add_executable(motor_checks_server
+  src/motor_checks_server.cpp
+  src/MotorDriver.c
+  src/esp32_bridge.c            # ← AÑADE ESTO
+  src/motor_encoder.c 
+  src/DEV_Config.c              # (si ya estaba)
+  # no metas PCA9685.c
+)
 
 ament_target_dependencies(motor_checks_server rclcpp std_srvs)
-target_link_libraries(motor_checks_server m wiringPi pthread crypt rt)
+
+target_include_directories(motor_checks_server PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(motor_checks_server
+  wiringPi pthread m rt crypt   # lo mismo que ya usabas
+)
+
 target_compile_options(motor_checks_server PRIVATE -w)
 
 add_executable(motor_checks_client src/motor_checks_client.cpp) 

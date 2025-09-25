@@ -1,129 +1,61 @@
-/*****************************************************************************
-* | File        :   MotorDriver.c
-* | Author      :   Waveshare team
-* | Function    :   Drive TB6612FNG
-* | Info        :
-*                TB6612FNG is a driver IC for DC motor with output transistor in
-*                LD MOS structure with low ON-resistor. Two input signals, IN1
-*                and IN2, can choose one of four modes such as CW, CCW, short
-*                brake, and stop mode.
-*----------------
-* |	This version:   V1.0
-* | Date        :   2018-09-04
-* | Info        :   Basic version
-*
-******************************************************************************/
-#include "lidarbot_base/MotorDriver.h"
-#include "lidarbot_base/Debug.h"
+// Driver de motores usando ESP32 por I2C (reemplaza PCA9685+TB6612)
 
-UWORD ain1_value, ain2_value; 
-UWORD bin1_value, bin2_value;
+#include "lidarbot_base/MotorDriver.h"     // define UBYTE, UWORD, DIR, MOTORA/MOTORB
+#include "lidarbot_base/esp32_bridge.h"
+#include <stdio.h>
+#include <stdint.h>
 
-/**
- * Motor rotation.
- *
- * Example:
- * Motor_Init();
- */
+#define ESP32_I2C_ADDR  0x28     // misma dirección que en el firmware
+#define INPUT_ABS_MAX   1000     // escala que espera el ESP32
+
+static int16_t g_last_left  = 0;
+static int16_t g_last_right = 0;
+
+static int16_t pct_to_cmd(UWORD speed_pct, DIR dir) {
+  if (speed_pct > 100) speed_pct = 100;
+  // 0..100% -> 0..INPUT_ABS_MAX
+  int16_t val = (int16_t)((speed_pct * INPUT_ABS_MAX) / 100);
+  if (dir == BACKWARD) val = -val;
+  return val;
+}
+
 void Motor_Init(void)
 {
-    PCA9685_Init(0x40);
-    PCA9685_SetPWMFreq(50);
+  if (esp32_bridge_init(ESP32_I2C_ADDR) != 0) {
+    fprintf(stderr, "[MotorDriver] ERROR: esp32_bridge_init() falló\n");
+  }
+  esp32_bridge_enable();
+  g_last_left = 0;
+  g_last_right = 0;
+  esp32_bridge_stop();
 }
 
 /**
- * Motor rotation.
- *
- * @param motor: Motor A and Motor B.
- * @param dir: forward and backward.
- * @param speed: Rotation speed.  //(0~100)
- *
- * Example:
- * @code
- * Motor_Run(MOTORA, FORWARD, 50);
- * Motor_Run(MOTORB, BACKWARD, 100);
+ * Ejecuta un solo motor con % de velocidad.
+ * - motor: MOTORA (izq) o MOTORB (der)
+ * - dir:   FORWARD / BACKWARD
+ * - speed: 0..100 (%)
  */
 void Motor_Run(UBYTE motor, DIR dir, UWORD speed)
 {
-    if(speed > 100)
-        speed = 100;
+  int16_t cmd = pct_to_cmd(speed, dir);
 
-    if(motor == MOTORA) {
-        DEBUG("Motor A Speed = %d\r\n", speed);
-        PCA9685_SetPwmDutyCycle(PWMA, speed);
-        if(dir == FORWARD) {
-            DEBUG("forward...\r\n");
-            PCA9685_SetLevel(AIN1, 0);
-            PCA9685_SetLevel(AIN2, 1);
-            ain1_value = 0;
-            ain2_value = 1;
-        } else {
-            DEBUG("backward...\r\n");
-            PCA9685_SetLevel(AIN1, 1);
-            PCA9685_SetLevel(AIN2, 0);
-            ain1_value = 1;
-            ain2_value = 0;
-        }
-    } else {
-        DEBUG("Motor B Speed = %d\r\n", speed);
-        PCA9685_SetPwmDutyCycle(PWMB, speed);
-        if(dir == FORWARD) {
-            DEBUG("forward...\r\n");
-            PCA9685_SetLevel(BIN1, 0);
-            PCA9685_SetLevel(BIN2, 1);
-            bin1_value = 0;
-            bin2_value = 1;
-        } else {
-            DEBUG("backward...\r\n");
-            PCA9685_SetLevel(BIN1, 1);
-            PCA9685_SetLevel(BIN2, 0);
-            bin1_value = 1;
-            bin2_value = 0;
-        }
-    }
+  if (motor == MOTORA) {
+    g_last_left = cmd;
+  } else {  // MOTORB
+    g_last_right = cmd;
+  }
+
+  esp32_bridge_set_speeds(g_last_left, g_last_right);
 }
 
-/**
- * Motor stop rotation.
- *
- * @param motor: Motor A and Motor B.
- *
- * Example:
- * @code
- * Motor_Stop(MOTORA);
- */
+/** Detiene el motor indicado (si quieres parar ambos, llama 2 veces o usa esp32_bridge_stop()) */
 void Motor_Stop(UBYTE motor)
 {
-    if(motor == MOTORA) {
-        PCA9685_SetPwmDutyCycle(PWMA, 0);
-    } else {
-        PCA9685_SetPwmDutyCycle(PWMB, 0);
-    }
-}
-
-/**
-* Returns motor direction. 
-*   1 - forward 
-*   0 - backward
-*
-* @param motor: Motor A and Motor B
-*
-* Example:
-* @code
-* Motor_Direction(MOTORA);
-*/
-UBYTE Motor_Direction(UBYTE motor)
-{
-    if(motor == MOTORA) {
-        if(ain1_value == 0 && ain2_value == 1)
-            return 1;
-        else if(ain1_value == 1 && ain2_value == 0)
-            return 0;
-    }
-    else {
-        if(bin1_value == 0 && bin2_value == 1)
-            return 1;
-        else if(bin1_value == 1 && bin2_value == 0)
-            return 0;
-    }
+  if (motor == MOTORA) {
+    g_last_left = 0;
+  } else { // MOTORB
+    g_last_right = 0;
+  }
+  esp32_bridge_set_speeds(g_last_left, g_last_right);
 }
