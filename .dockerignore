@@ -1,0 +1,21 @@
+# Artefactos de Python/ROS/IDE
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+build/
+install/
+log/
+.vscode/
+.idea/
+.devenv/
+
+# Documentación y medios pesados (no necesarios para runtime)
+docs/
+*.gif
+*.jpg
+*.png
+*.mp4
+
+# Git
+.git
+.gitignore
