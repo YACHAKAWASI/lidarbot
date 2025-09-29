@@ -10,12 +10,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
     RMW_IMPLEMENTATION=rmw_fastrtps_cpp \
     PACKAGES_SKIP="lidarbot_gazebo lidarbot_gz"
 
-# Herramientas de compilación y deps del sistema (incluye I2C)
+# Herramientas de compilación y deps del sistema (I2C/OpenCV/Eigen/YAML)
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential cmake git pkg-config rsync \
       python3-pip python3-colcon-common-extensions \
       python3-rosdep python3-vcstool \
       libi2c-dev i2c-tools \
+      libopencv-dev python3-opencv \
+      libeigen3-dev libyaml-cpp-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # rosdep
@@ -51,7 +53,7 @@ COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 
-# Launch por defecto (puedes sobreescribir con .env/compose)
+# Launch por defecto (se puede sobreescribir con .env/compose)
 ENV APP_LAUNCH_PKG=lidarbot_bringup \
     APP_LAUNCH_FILE=lidarbot_bringup_launch.py
 CMD ["ros2", "launch", "lidarbot_bringup", "lidarbot_bringup_launch.py"]
