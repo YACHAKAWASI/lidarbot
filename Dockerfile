@@ -27,7 +27,12 @@ WORKDIR /ws
 COPY . /ws/src_root/
 
 # Sincronizamos solo src/ al workspace
-RUN mkdir -p /ws/src && rsync -a --delete /ws/src_root/src/ /ws/src/ || true
+# RUN mkdir -p /ws/src && rsync -a --delete /ws/src_root/src/ /ws/src/ || true
+# Copiamos TODO el repo al workspace, excluyendo lo que no es código ROS
+RUN mkdir -p /ws/src && rsync -a --delete \
+    --exclude '.git' --exclude '.github' --exclude 'docker' --exclude 'docs' \
+    /ws/src_root/ /ws/src/
+
 
 # Dependencias de sistema declaradas en package.xml
 RUN apt-get update && \
